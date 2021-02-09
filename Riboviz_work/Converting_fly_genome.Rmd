@@ -64,9 +64,12 @@ ___
 Script requires - genome fasta file and GFF file. Length of flanking region - using approx median UTR length.
 
 ```{r user_inputs}
+##change files to my required files - downloaded from pombase onto my computer 
 annotation_path <- "1_Raw_data/Dmel_genomes/dmel-all-r6.35.gff"
 genome_path <- "1_Raw_data/Dmel_genomes/dmel-all-chromosome-r6.35.fasta"
+#How large do I want all 3' and 5' UTRs on either side of CDS to be
 flanking_length_nt <- 250
+# where do I want my end files to be stored  
 output_path <- "2_Processed_data/Dmel_genomes/Dmel"
 ```
 
