@@ -91,6 +91,84 @@ fiveUTR <- fiveUTRsByTranscript(txdb,use.names=TRUE)
 
 ```
 
+Background info while trying to understand data:
+
+head(txdb) produces: 'Error in x[seq_len(n)] : object of type 'S4' is not subsettable' so was turned into a list to see the contents
+
+test_txdb <- as.list(txdb) produces a list with 4 elements; $transcripts, $splicings, $genes, $chrominfo. to find out more each was explored with head().
+
+> head(test_txbd$transcripts)
+  tx_id       tx_name                tx_type             tx_chrom tx_strand tx_start tx_end
+1     1  SPBC460.03.1                   mRNA chr_II_telomeric_gap         +    11641  13344
+2     2  SPBC460.05.1                   mRNA chr_II_telomeric_gap         +    16470  18062
+3     3 SPBC460.01c.1                   mRNA chr_II_telomeric_gap         -     1479   3197
+4     4 SPBC460.02c.1                   mRNA chr_II_telomeric_gap         -     8856   9803
+5     5 SPBC460.04c.1                   mRNA chr_II_telomeric_gap         -    14073  15248
+6     6 SPAC212.09c.1 pseudogenic_transcript                    I         +     7619   9274
+
+head(test_txbd$splicings)
+  tx_id exon_rank exon_id            exon_name           exon_chrom exon_strand exon_start exon_end cds_id             cds_name cds_start cds_end cds_phase
+1     1         1       1  SPBC460.03.1:exon:1 chr_II_telomeric_gap           +      11641    13344      1  SPBC460.03.1:exon:1     11641   13344         0
+2     2         1       2  SPBC460.05.1:exon:1 chr_II_telomeric_gap           +      16470    18062      2  SPBC460.05.1:exon:1     16470   18062         0
+3     3         1       3 SPBC460.01c.1:exon:1 chr_II_telomeric_gap           -       1479     3197      3 SPBC460.01c.1:exon:1      1479    3197         0
+4     4         1       5 SPBC460.02c.1:exon:1 chr_II_telomeric_gap           -       9651     9803      5 SPBC460.02c.1:exon:1      9651    9803         0
+5     4         2       4 SPBC460.02c.1:exon:2 chr_II_telomeric_gap           -       8856     9365      4 SPBC460.02c.1:exon:2      8856    9365         0
+6     5         1       6 SPBC460.04c.1:exon:1 chr_II_telomeric_gap           -      14073    15248      6 SPBC460.04c.1:exon:1     14073   15248         0
+
+head(test_txbd$genes)
+  tx_id gene_id
+1     1    vba2
+2    14    ftm1
+3    15    ftm2
+4    20    ayr2
+5    21    nhe1
+6    22   prl19
+
+head(test_txbd$chrominfo)
+                 chrom length is_circular
+1 chr_II_telomeric_gap     NA          NA
+2                    I     NA          NA
+3                   II     NA          NA
+4                  III     NA          NA
+5   mating_type_region     NA          NA
+6        mitochondrial     NA          NA
+
+
+
+head(cds) produces: GRangesList object of length 6:
+$SPBC460.03.1
+GRanges object with 1 range and 3 metadata columns:
+                  seqnames      ranges strand |    cds_id            cds_name exon_rank
+                     <Rle>   <IRanges>  <Rle> | <integer>         <character> <integer>
+  [1] chr_II_telomeric_gap 11641-13344      + |         1 SPBC460.03.1:exon:1         1
+  -------
+  seqinfo: 6 sequences from an unspecified genome; no seqlengths
+
+$SPBC460.05.1
+GRanges object with 1 range and 3 metadata columns:
+                  seqnames      ranges strand |    cds_id            cds_name exon_rank
+                     <Rle>   <IRanges>  <Rle> | <integer>         <character> <integer>
+  [1] chr_II_telomeric_gap 16470-18062      + |         2 SPBC460.05.1:exon:1         1
+  -------
+  seqinfo: 6 sequences from an unspecified genome; no seqlengths
+
+$SPBC460.01c.1
+GRanges object with 1 range and 3 metadata columns:
+                  seqnames    ranges strand |    cds_id             cds_name exon_rank
+                     <Rle> <IRanges>  <Rle> | <integer>          <character> <integer>
+  [1] chr_II_telomeric_gap 1479-3197      - |         3 SPBC460.01c.1:exon:1         1
+  -------
+  seqinfo: 6 sequences from an unspecified genome; no seqlengths
+
+...
+<3 more elements>
+
+both head(threeUTR) and head(fiveUTR) produce 
+'GRangesList object of length 0:
+<0 elements>'
+
+
+
 Describe UTRs for CDS without them.
 This takes a while if no UTRs annotated.
 
