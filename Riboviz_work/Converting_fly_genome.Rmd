@@ -4,7 +4,7 @@ author: "Isabel Birds"
 date: "5 November 2020"
 output: html_document
 ---
-
+For converting genome fasta and gff files into files representitative of the transcriptome for use in ribosome profiling analysis using Riboviz. Currently desinged for fly genomes but I (3mma-mack) am planning on using a similar code to create transcriptome files for S. pombe so creating notes and understanding the major steps is a good start
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
