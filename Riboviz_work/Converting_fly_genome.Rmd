@@ -73,7 +73,7 @@ flanking_length_nt <- 250
 output_path <- "2_Processed_data/Dmel_genomes/Dmel"
 ```
 
-what is a TxDb. a TxDb is made up of at least 2 dataframes (required are info on transcripts and info on splicings) with the options of a gene database. These dataframes 'describe a set of transcripts and the genomic features related to them (exons, CDS and genes at the moment)' and together form an object called a TxDb. This is from the GenomicFeatures package. 
+What is a TxDb object. a TxDb is made up of at least 2 dataframes (required are info on transcripts and info on splicings) with the options of a gene database. These dataframes 'describe a set of transcripts and the genomic features related to them (exons, CDS and genes at the moment)' and together form an object called a TxDb. This is from the GenomicFeatures package. 
 
 Using make TxDbFromGFF as better for quickly loading large GFFs.
 If also need exons: exons <- exonsBy(txdb,"tx")
@@ -81,13 +81,13 @@ If also need exons: exons <- exonsBy(txdb,"tx")
 ```{r load_files} 
 
 #import a GFF as a TxDb object. 
-txdb <- makeTxDbFromGFF(annotation_path, format="gff3")
+txdb <- GenomicFeatures::makeTxDbFromGFF(annotation_path, format="gff3")
 
 #Extract the coding regions, UTRs, and exons by transcript
 
-cds <- cdsBy(txdb, "tx",use.names=TRUE)
-threeUTR <-  threeUTRsByTranscript(txdb,use.names=TRUE)
-fiveUTR <- fiveUTRsByTranscript(txdb,use.names=TRUE)
+cds <- GenomicFeatures::cdsBy(txdb, "tx",use.names=TRUE)
+threeUTR <-  GenomicFeatures::threeUTRsByTranscript(txdb,use.names=TRUE)
+fiveUTR <- GenomicFeatures::fiveUTRsByTranscript(txdb,use.names=TRUE)
 
 ```
 
@@ -133,7 +133,7 @@ head(test_txbd$chrominfo)
 5   mating_type_region     NA          NA
 6        mitochondrial     NA          NA
 
-
+the result of producing cds is a Large CompressedGRangesList (7006 elements, 1.8 MB) 
 
 head(cds) produces: GRangesList object of length 6:
 $SPBC460.03.1
@@ -167,6 +167,9 @@ both head(threeUTR) and head(fiveUTR) produce
 'GRangesList object of length 0:
 <0 elements>'
 
+However, this may not be a problem as the next step adds flanks of 250nt to the 3' and 5' UTRs of genes in the next step. 
+
+I wanted to create a smaller test file to run for the next step, however so far this has not been done. Will update here if successful. 
 
 
 Describe UTRs for CDS without them.
@@ -176,9 +179,12 @@ This takes a while if no UTRs annotated.
 
 #5' UTR
 #Find CDS w/o 5' UTR
+#line means record cds where the name present in cds does not appear in fiveUTR
 no_fiveUTR_cds <- cds[!names(cds) %in% names(fiveUTR)]
+# no_fiveUTR_cds when run with the full dataset is a Large CompressedGRangesList (7006 elements, 1.8 MB), the same as cds. This would explain why fiveUTR and threeUTR have a length 0, there are no recorded UTRs. This may be a problem, but will have to see later on
 
 #Add 5'UTR
+#this function will increase value in the ranges column of no_fiveUTR by a specified amount 
 add_5UTR <- function(no_fiveUTR_cds,flanking_length_nt){
   #pull out start of cds
   #using to ensure retains all metadata and maps back to transcript.
@@ -189,6 +195,8 @@ add_5UTR <- function(no_fiveUTR_cds,flanking_length_nt){
 }
 
 no_fiveUTR_UTR <- endoapply(no_fiveUTR_cds,add_5UTR,flanking_length_nt)
+#endoapply applies a data into a funtion, here add_5UTR. When run with the first 100 rows of no_fiveUTR_cds, the ranges increased by the specifeid amount (at the top of the code)
+
 
 #3' UTR
 #Find CDS w/o 3' UTR
@@ -205,7 +213,7 @@ add_3UTR <- function(no_threeUTR_cds,flanking_length_nt){
 }
 
 no_threeUTR_UTR <- endoapply(no_threeUTR_cds,add_3UTR,flanking_length_nt)
-
+# this is a repeat of add_5UTR, and adds a flank to the 3' end of cds without a 3' UTR
 ```
 
 Extend UTRs of less than flanking length (250nt).
