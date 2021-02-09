@@ -73,15 +73,18 @@ flanking_length_nt <- 250
 output_path <- "2_Processed_data/Dmel_genomes/Dmel"
 ```
 
+what is a TxDb. a TxDb is made up of at least 2 dataframes (required are info on transcripts and info on splicings) with the options of a gene database. These dataframes 'describe a set of transcripts and the genomic features related to them (exons, CDS and genes at the moment)' and together form an object called a TxDb. This is from the GenomicFeatures package. 
+
 Using make TxDbFromGFF as better for quickly loading large GFFs.
 If also need exons: exons <- exonsBy(txdb,"tx")
 
 ```{r load_files} 
 
-#import a GFF as a TxDb object.
+#import a GFF as a TxDb object. 
 txdb <- makeTxDbFromGFF(annotation_path, format="gff3")
 
 #Extract the coding regions, UTRs, and exons by transcript
+
 cds <- cdsBy(txdb, "tx",use.names=TRUE)
 threeUTR <-  threeUTRsByTranscript(txdb,use.names=TRUE)
 fiveUTR <- fiveUTRsByTranscript(txdb,use.names=TRUE)
