@@ -218,7 +218,7 @@ no_threeUTR_UTR <- endoapply(no_threeUTR_cds,add_3UTR,flanking_length_nt)
 
 Extend UTRs of less than flanking length (250nt).
 This bit takes a while... should depend on transcriptome size.
-
+# I had run up to here by creating smaller datasets with the first 1000 rows of no_fiveUTR_cds and no_threeUTR_cds however I realised this may cause issues when I later came to recreate the GFF file. I may test run this with the full dataset soon
 ```{r extend_buffers}
 
 #Find 5' UTR shorter than flanking length
@@ -234,7 +234,7 @@ resize_short_5UTR <- function(short_5UTR,flanking_length_nt){
     ranges(short_5UTR[1]) <- ranges(range(flank(short_5UTR[1],start=TRUE,both=FALSE,width=extra),short_5UTR[1]))
     return(short_5UTR)
 }
-
+# very similar to add_fiveUTR, except only increasing flanks shorter than 250 to 250 instead of adding them on
 extended_short_5UTR <- endoapply(short_5UTR,resize_short_5UTR,flanking_length_nt)
 
 
@@ -254,11 +254,12 @@ resize_short_3UTR <- function(short_3UTR,flanking_length_nt){
 }
 
 extended_short_3UTR <- endoapply(short_3UTR,resize_short_3UTR,flanking_length_nt)
+#after this all cds will have flanking regions of 250 nt on either side, this will be consistent throughout the data
 
 #save outputs from this chunk because woof
 save("extended_short_5UTR",file="tmp_extended_short_5UTR")
 save("extended_short_3UTR",file="tmp_extended_short_3UTR")
-
+# from base R, this function saves data as a new file, which is specifed in the file parameter 
 ```
 
 Combine UTR list, check 5', 3' and CDS are same length. 
@@ -266,14 +267,14 @@ Combine all into one grangeslist.
 
 ```{r combine_UTR}
 
-#Remove extended UTR from original three UTR - prevent duplicates.
+#Remove extended UTR from original three UTR - prevent duplicates. only threeUTR's that are not present in extender_short_3UTRs are kept in threeUTR
 threeUTR <- threeUTR[!names(threeUTR) %in% names(extended_short_3UTR)]
-#Combine into one three UTR list
-all_threeUTR <- c(threeUTR,extended_short_3UTR,no_threeUTR_UTR)
+#Combine into one three UTR list. all in this list should now have a flank of 250
+all_threeUTR <- c(threeUTR,extended_short_3UTR,no_threeUTR_UTR) 
 
 #Remove extended UTR from original five UTR - prevent duplicates.
 fiveUTR <- fiveUTR[!names(fiveUTR) %in% names(extended_short_5UTR)]
-#Combine into one five UTR list
+#Combine into one five UTR list. repeat of above, all in this list should now have a length of 250
 all_fiveUTR <- c(fiveUTR,extended_short_5UTR,no_fiveUTR_UTR)
 
 #CHECK - should have a 3UTR and 5UTR for all CDS, and all flanking length or longer
@@ -281,8 +282,9 @@ length(cds) == length(all_threeUTR)
 length(cds) == length(all_fiveUTR)
 all((sum(width(all_threeUTR)) >= flanking_length_nt))
 all((sum(width(all_fiveUTR)) >= flanking_length_nt))
+# all() returns True or false. We are expecting true at this stage
 
-#Clear up env
+#Clear up env. prevent confusion with having lots of documents 
 rm(extended_short_3UTR,threeUTR,extended_short_5UTR,fiveUTR,no_fiveUTR_cds,no_fiveUTR_UTR,
    no_threeUTR_cds,no_threeUTR_UTR,short_3UTR,short_5UTR)
 ```
