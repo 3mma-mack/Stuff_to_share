@@ -193,7 +193,7 @@ add_5UTR <- function(no_fiveUTR_cds,flanking_length_nt){
   ranges(tmp_5UTR) <- ranges(flank(tmp_5UTR,start = TRUE, both = FALSE, width = flanking_length_nt, use.names = TRUE))
   return(tmp_5UTR)
 }
-
+# when individually done, ranges() and flank() produce the error 'could not find function'. this does not happen when the whole function of add_5UTR() is run. Here it is used to indicate different columns in the data. 
 no_fiveUTR_UTR <- endoapply(no_fiveUTR_cds,add_5UTR,flanking_length_nt)
 #endoapply applies a data into a funtion, here add_5UTR. When run with the first 100 rows of no_fiveUTR_cds, the ranges increased by the specifeid amount (at the top of the code)
 
@@ -213,7 +213,7 @@ add_3UTR <- function(no_threeUTR_cds,flanking_length_nt){
 }
 
 no_threeUTR_UTR <- endoapply(no_threeUTR_cds,add_3UTR,flanking_length_nt)
-# this is a repeat of add_5UTR, and adds a flank to the 3' end of cds without a 3' UTR
+# this is a repeat of add_5UTR, and adds a flank to the 3' end of cds without a 3' UTR.
 ```
 
 Extend UTRs of less than flanking length (250nt).
