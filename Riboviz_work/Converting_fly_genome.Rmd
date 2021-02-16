@@ -303,7 +303,7 @@ rtracklayer::export.bed(all_fiveUTR,"tmp_5UTR.bed")
 rtracklayer::export.bed(all_threeUTR,"tmp_3UTR.bed")
 
 
-#Use bedtools to get sequences
+#Use bedtools to get sequences. genome_path is the fasta file
 #Split - splices together cds
 cds_seq <- bedtoolsr::bt.getfasta(fi=genome_path, bed = "tmp_cds.bed",name = TRUE, split = FALSE)
 three_seq <- bedtoolsr::bt.getfasta(fi=genome_path,bed = "tmp_3UTR.bed",name =TRUE, split = FALSE)
