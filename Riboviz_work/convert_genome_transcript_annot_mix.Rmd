@@ -191,9 +191,8 @@ names(cds) <- gsub("'","_",names(cds))
 names(all_fiveUTR) <- gsub("'","_",names(all_fiveUTR))
 names(all_threeUTR) <- gsub("'","_",names(all_threeUTR))
 #gsub is a version of grep from base R. in this case it looks for the character ' and replaces it with _.
-```
-from here began playing adding in code from the script_for_transcript_annotation to avoid using bedtools. 
-```
+
+#from here I began playing adding in code from the script_for_transcript_annotation to avoid using bedtools. 
 cds_trans <- readGFFAsGRanges(annotation_path)
 #script for transcript annotation here for playing about with. need to make a gRange object, but a GRanges List is made of multiple objects.
 
