@@ -1,0 +1,212 @@
+---
+title: "Converting_fly_genome"
+author: "Isabel Birds"
+date: "5 November 2020"
+output: html_document
+---
+For converting genome fasta and gff files into files representitative of the transcriptome for use in ribosome profiling analysis using Riboviz. Currently desinged for fly genomes but I (3mma-mack) am planning on using a similar code to create transcriptome files for S. pombe so creating notes and understanding the major steps is a good start
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Biostrings)
+library(seqinr)
+library(GenomicRanges) 
+library(GenomicFeatures)
+library(rtracklayer)
+library(bedtoolsr)
+library(dplyr)
+options(bedtools.path = "/Users/cm13ijb/opt/anaconda3/bin")
+set.seed(123)
+```
+
+Raw files:
+
+* Dmel GFF, from ftp://ftp.flybase.net/releases/FB2020_04/dmel_r6.35/gff/dmel-all-r6.35.gff.gz 
+* Dmel genome fasta, from ftp://ftp.flybase.net/releases/FB2020_04/dmel_r6.35/fasta/dmel-all-chromosome-r6.35.fasta.gz 
+
+Need bedtools installed.
+devtools::install_github("PhanstielLab/bedtoolsr")
+Have to give
+ options(bedtools.path = "/Users/cm13ijb/opt/anaconda3/bin")
+
+
+To Do:
+
+* Reformat dmel files to match yeast files - transcript focused. Previous script here https://github.com/riboviz/riboviz/blob/master/rmarkdown/script_for_transcript_annotation.Rmd - isn't generic.
+* Check how bicistronic transcripts are dealt with in GFF. 
+* Filter to one ORF per transcript at end (check - per gene?)
+* Double check works on gencode and non flybase GFF - other species. 
+
+
+Vague plan:
+
+* Load files 
+* Pull out CDS, UTRs from GFF
+* Add/extend UTRs in GFF
+* Use new GFF to get CDS and buffer sequence from fasta.
+* Concatenate CDS in fasta
+* Change fasta sequence IDs, and start/stops
+* Make new GFF based on this fasta
+* Output files
+
+Notes:
+
+* Dmel UTR length - based on current annotation - 5' UTR median 194nt, 3' UTR median 306nt. Some v v long outliers, but 250nt seems reasonable to use for buffer for now.
+* GFF format aim: Seq_ID  X SeqType start end . strand  . Name=Seq_ID
+
+naming convention:
+five_prime_UTR
+three_prime_UTR
+
+___
+
+Script requires - genome fasta file and GFF file. Length of flanking region - using approx median UTR length.
+
+```{r user_inputs}
+##change files to my required files - downloaded from pombase onto my computer 
+annotation_path <- "1_Raw_data/Dmel_genomes/dmel-all-r6.35.gff"
+genome_path <- "1_Raw_data/Dmel_genomes/dmel-all-chromosome-r6.35.fasta"
+#How large do I want all 3' and 5' UTRs on either side of CDS to be
+flanking_length_nt <- 250
+# where do I want my end files to be stored  
+output_path <- "2_Processed_data/Dmel_genomes/Dmel"
+```
+
+What is a TxDb object. a TxDb is made up of at least 2 dataframes (required are info on transcripts and info on splicings) with the options of a gene database. These dataframes 'describe a set of transcripts and the genomic features related to them (exons, CDS and genes at the moment)' and together form an object called a TxDb. This is from the GenomicFeatures package. 
+
+Using make TxDbFromGFF as better for quickly loading large GFFs.
+If also need exons: exons <- exonsBy(txdb,"tx")
+
+```{r load_files} 
+#import a GFF as a TxDb object. 
+txdb <- GenomicFeatures::makeTxDbFromGFF(annotation_path, format="gff3")
+#Extract the coding regions, UTRs, and exons by transcript
+cds <- GenomicFeatures::cdsBy(txdb, "tx",use.names=TRUE)
+threeUTR <-  GenomicFeatures::threeUTRsByTranscript(txdb,use.names=TRUE)
+fiveUTR <- GenomicFeatures::fiveUTRsByTranscript(txdb,use.names=TRUE)
+
+Describe UTRs for CDS without them.
+This takes a while if no UTRs annotated.
+
+```{r make_buffers}
+#5' UTR
+#Find CDS w/o 5' UTR
+#line means record cds where the name present in cds does not appear in fiveUTR
+no_fiveUTR_cds <- cds[!names(cds) %in% names(fiveUTR)]
+# no_fiveUTR_cds when run with the full dataset is a Large CompressedGRangesList (7006 elements, 1.8 MB), the same as cds. This would explain why fiveUTR and threeUTR have a length 0, there are no recorded UTRs. This may be a problem, but will have to see later on
+#Add 5'UTR
+#this function will increase value in the ranges column of no_fiveUTR by a specified amount 
+add_5UTR <- function(no_fiveUTR_cds,flanking_length_nt){
+  #pull out start of cds
+  #using to ensure retains all metadata and maps back to transcript.
+  tmp_5UTR <- no_fiveUTR_cds[1]
+  #find range for 5UTR,update range of tmp5_UTR
+  ranges(tmp_5UTR) <- ranges(flank(tmp_5UTR,start = TRUE, both = FALSE, width = flanking_length_nt, use.names = TRUE))
+  return(tmp_5UTR)
+}
+# when individually done, ranges() and flank() produce the error 'could not find function'. this does not happen when the whole function of add_5UTR() is run. Here it is used to indicate different columns in the data. 
+no_fiveUTR_UTR <- endoapply(no_fiveUTR_cds,add_5UTR,flanking_length_nt)
+#endoapply applies a data into a funtion, here add_5UTR. When run with the first 100 rows of no_fiveUTR_cds, the ranges increased by the specifeid amount (at the top of the code)
+#3' UTR
+#Find CDS w/o 3' UTR
+no_threeUTR_cds <- cds[!names(cds) %in% names(threeUTR)]
+#Add 3'UTR
+add_3UTR <- function(no_threeUTR_cds,flanking_length_nt){
+  #pull out end of cds
+  #using to ensure retains all metadata and maps back to transcript.
+  tmp_3UTR <- no_threeUTR_cds[length(no_threeUTR_cds)]
+  #find range for 3UTR, update range of tmp3UTR
+  ranges(tmp_3UTR) <- ranges(flank(tmp_3UTR,start = FALSE, both = FALSE, width = flanking_length_nt, use.names = TRUE))
+  return(tmp_3UTR)
+}
+no_threeUTR_UTR <- endoapply(no_threeUTR_cds,add_3UTR,flanking_length_nt)
+# this is a repeat of add_5UTR, and adds a flank to the 3' end of cds without a 3' UTR.
+```
+
+Extend UTRs of less than flanking length (250nt).
+This bit takes a while... should depend on transcriptome size.
+# I had run up to here by creating smaller datasets with the first 1000 rows of no_fiveUTR_cds and no_threeUTR_cds however I realised this may cause issues when I later came to recreate the GFF file. I may test run this with the full dataset soon
+```{r extend_buffers}
+#Find 5' UTR shorter than flanking length
+short_5UTR <- fiveUTR[sum(width(fiveUTR)) < flanking_length_nt]
+#function to extend 5'UTR
+#ignores intron/exon boundaries currently
+resize_short_5UTR <- function(short_5UTR,flanking_length_nt){
+    #calculate extension needed
+    extra = flanking_length_nt - sum(width(short_5UTR))
+    #create extra range at start, combine with first range, update.
+    #adds to start of first range for +, adds to end of first range for - strand
+    ranges(short_5UTR[1]) <- ranges(range(flank(short_5UTR[1],start=TRUE,both=FALSE,width=extra),short_5UTR[1]))
+    return(short_5UTR)
+}
+# very similar to add_fiveUTR, except only increasing flanks shorter than 250 to 250 instead of adding them on
+extended_short_5UTR <- endoapply(short_5UTR,resize_short_5UTR,flanking_length_nt)
+#Find 3' UTR shorter than flanking length
+short_3UTR <- threeUTR[sum(width(threeUTR)) < flanking_length_nt]
+#function to extend 3'UTR
+#ignores intron/exon boundaries currently
+resize_short_3UTR <- function(short_3UTR,flanking_length_nt){
+    #calculate extension needed
+    extra = flanking_length_nt - sum(width(short_3UTR))
+    #create extra range at end, combine with last range, update.
+    #adds to end of last range for +, adds to start of last range for - strand
+    ranges(short_3UTR[length(short_3UTR)]) <- ranges(range(flank(short_3UTR[length(short_3UTR)],
+                                                                 start=FALSE,both=FALSE,width=extra),short_3UTR[length(short_3UTR)]))
+    return(short_3UTR)
+}
+extended_short_3UTR <- endoapply(short_3UTR,resize_short_3UTR,flanking_length_nt)
+#after this all cds will have flanking regions of 250 nt on either side, this will be consistent throughout the data
+#save outputs from this chunk because woof
+save("extended_short_5UTR",file="tmp_extended_short_5UTR")
+save("extended_short_3UTR",file="tmp_extended_short_3UTR")
+# from base R, this function saves data as a new file, which is specifed in the file parameter 
+```
+
+Combine UTR list, check 5', 3' and CDS are same length. 
+Combine all into one grangeslist.
+
+```{r combine_UTR}
+#Remove extended UTR from original three UTR - prevent duplicates. only threeUTR's that are not present in extender_short_3UTRs are kept in threeUTR
+threeUTR <- threeUTR[!names(threeUTR) %in% names(extended_short_3UTR)]
+#Combine into one three UTR list. all in this list should now have a flank of 250
+all_threeUTR <- c(threeUTR,extended_short_3UTR,no_threeUTR_UTR) 
+#Remove extended UTR from original five UTR - prevent duplicates.
+fiveUTR <- fiveUTR[!names(fiveUTR) %in% names(extended_short_5UTR)]
+#Combine into one five UTR list. repeat of above, all in this list should now have a length of 250
+all_fiveUTR <- c(fiveUTR,extended_short_5UTR,no_fiveUTR_UTR)
+#CHECK - should have a 3UTR and 5UTR for all CDS, and all flanking length or longer
+length(cds) == length(all_threeUTR)
+length(cds) == length(all_fiveUTR)
+all((sum(width(all_threeUTR)) >= flanking_length_nt))
+all((sum(width(all_fiveUTR)) >= flanking_length_nt))
+# all() returns True or false. We are expecting true at this stage
+#Clear up env. prevent confusion with having lots of documents 
+rm(extended_short_3UTR,threeUTR,extended_short_5UTR,fiveUTR,no_fiveUTR_cds,no_fiveUTR_UTR,
+   no_threeUTR_cds,no_threeUTR_UTR,short_3UTR,short_5UTR)
+```
+
+```{r get_sequences}
+#Get rid of characters that will break R - EOF within quoted string error
+names(cds) <- gsub("'","_",names(cds))
+names(all_fiveUTR) <- gsub("'","_",names(all_fiveUTR))
+names(all_threeUTR) <- gsub("'","_",names(all_threeUTR))
+#gsub is a version of grep from base R. in this case it looks for the character ' and replaces it with _.
+```
+from here began playing adding in code from the script_for_transcript_annotation to avoid using bedtools. 
+```
+cds_trans <- readGFFAsGRanges(annotation_path)
+#script for transcript annotation here for playing about with. need to make a gRange object, but a GRanges List is made of multiple objects.
+
+yeast_genome <- readDNAStringSet(genome_path)
+yeast_genome <- xscat(DNAString(paste(rep("N",250),collapse="")),
+yeast_genome,
+DNAString(paste(rep("N",250),collapse="")))
+# after a LONG time tring to figure out why this code was producing errors it turned out that the names were wrong so I corrected them
+
+names(yeast_genome) <- paste(c("chr_II_telomeric_gap", "I", "II","III", "mating_type_region", "mitochondrial"))
+cds_flank_seq <- yeast_genome[cds_flank_annot]
+names(cds_flank_seq) <- cds_flank_annot$Name
+
+threeUTR_flank_seq <- yeast_genome[threeUTR_flank_annot]
+# recieved more errors here. Am not sure why yet 
+```
