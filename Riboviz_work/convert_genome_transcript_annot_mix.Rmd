@@ -19,15 +19,11 @@ options(bedtools.path = "/Users/cm13ijb/opt/anaconda3/bin")
 set.seed(123)
 ```
 
+
 Raw files:
 
-* Dmel GFF, from ftp://ftp.flybase.net/releases/FB2020_04/dmel_r6.35/gff/dmel-all-r6.35.gff.gz 
-* Dmel genome fasta, from ftp://ftp.flybase.net/releases/FB2020_04/dmel_r6.35/fasta/dmel-all-chromosome-r6.35.fasta.gz 
-
-Need bedtools installed.
-devtools::install_github("PhanstielLab/bedtoolsr")
-Have to give
- options(bedtools.path = "/Users/cm13ijb/opt/anaconda3/bin")
+* S. pombe GFF, from https://www.pombase.org/data/genome_sequence_and_features/gff3/Schizosaccharomyces_pombe_all_chromosomes.gff3.gz
+* S. pombe genome fasta, from https://www.pombase.org/data/genome_sequence_and_features/genome_sequence/Schizosaccharomyces_pombe_all_chromosomes.fa.gz
 
 
 To Do:
