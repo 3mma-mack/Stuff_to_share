@@ -23,9 +23,10 @@ library(rhdf5)
 
 ### Prepare S288c annotations and ORF seqs
 ```{r}
-# Download annotations and genome seq from here - http://downloads.yeastgenome.org/sequence/S288C_reference/genome_releases/S288C_reference_genome_R64-2-1_20150113.tgz
-yeast_annot <- readGFFAsGRanges("saccharomyces_cerevisiae_R64-2-1_20150113.gff")
-yeast_genome <- readDNAStringSet("S288C_reference_sequence_R64-2-1_20150113.fsa")
+# Download annotations and genome seq from here - S. pombe GFF, from https://www.pombase.org/data/genome_sequence_and_features/gff3/Schizosaccharomyces_pombe_all_chromosomes.gff3.gz
+# S. pombe genome fasta, from https://www.pombase.org/data/genome_sequence_and_features/genome_sequence/Schizosaccharomyces_pombe_all_chromosomes.fa.gz
+yeast_annot <- readGFFAsGRanges("s_pombe.gff.gz")
+yeast_genome <- readDNAStringSet("S_pombe.fa.gz")
 # Pad genomes with 250 N nts to provide null flanking regions for genes close to chromosomal boundaries
 yeast_genome <- xscat(DNAString(paste(rep("N",250),collapse="")),
                       yeast_genome,
