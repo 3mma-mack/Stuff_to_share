@@ -25,16 +25,52 @@ library(rhdf5)
 ```{r}
 # Download annotations and genome seq from here - S. pombe GFF, from https://www.pombase.org/data/genome_sequence_and_features/gff3/Schizosaccharomyces_pombe_all_chromosomes.gff3.gz
 # S. pombe genome fasta, from https://www.pombase.org/data/genome_sequence_and_features/genome_sequence/Schizosaccharomyces_pombe_all_chromosomes.fa.gz
+# read gff as GRanges object, fasta as datastring 
 yeast_annot <- readGFFAsGRanges("s_pombe.gff.gz")
 yeast_genome <- readDNAStringSet("S_pombe.fa.gz")
+```
+head(yeast_genome) shows the following object:
+[1]   20000 CAATTGTAAACCATATTGGTA...TAAGGGTTCAGAGCGAGGAA chr_II_telomeric_...
+[2] 5579133 GATCACGTACATCACCTTGTA...AGAAGCAAACCGCATCGATC I Schizosaccharom...
+[3] 4539804 GATCTCGCAACTCTTAATAAA...TCGGGGAGGATGGGAAATTT II Schizosaccharo...
+[4] 2452883 GATCAGCCAAAATGGCTGATC...ATCAAGAACGAAAGTTAGGG III Schizosacchar...
+[5]   20128 AAAATTCGGGTAAAATAATTT...TTTCTTTTTTAAATTATTTT mating_type_regio...
+[6]   19431 AATGTGTAATTTGAATCAATT...ATAAATATTTTTATATATGT mitochondrial Sch...
+
+head(yeast_annot shows the following GRanges object:
+
+GRanges object with 6 ranges and 7 metadata columns:
+      seqnames          ranges strand |   source     type     score
+         <Rle>       <IRanges>  <Rle> | <factor> <factor> <numeric>
+  [1]        I 1798347-1799015      + |  PomBase   gene          NA
+  [2]        I 1798347-1799015      + |  PomBase   mRNA          NA
+  [3]        I 1798347-1798830      + |  PomBase   CDS           NA
+  [4]        I 1798831-1798959      + |  PomBase   intron        NA
+  [5]        I 1798960-1799015      + |  PomBase   CDS           NA
+  [6]        I 1799061-1800053      + |  PomBase   gene          NA
+          phase                     ID        Name          Parent
+      <integer>            <character> <character> <CharacterList>
+  [1]      <NA>            SPAC1002.01       mrx11                
+  [2]      <NA>          SPAC1002.01.1        <NA>     SPAC1002.01
+  [3]         0   SPAC1002.01.1:exon:1        <NA>   SPAC1002.01.1
+  [4]      <NA> SPAC1002.01.1:intron:1        <NA>   SPAC1002.01.1
+  [5]         0   SPAC1002.01.1:exon:2        <NA>   SPAC1002.01.1
+  [6]      <NA>            SPAC1002.02       pom34                
+-------
+
+```
+
 # Pad genomes with 250 N nts to provide null flanking regions for genes close to chromosomal boundaries
 yeast_genome <- xscat(DNAString(paste(rep("N",250),collapse="")),
                       yeast_genome,
                       DNAString(paste(rep("N",250),collapse="")))
+                      
+# This changes the names of the chromosomes, was hard coded for another dataset so changed to names(yeast_genome) <- paste(c("chr_II_telomeric_gap", "I", "II","III", "mating_type_region", "mitochondrial")), to match gff file for S.pombe                                             
 names(yeast_genome) <- paste("chr",c(as.character(as.roman(1:16)),"mt"),sep="")
-# Adjust the annotations for this 250nt shift
+
+# Adjust the annotations for 250nt shift, needed so sequneces align correctly 
 yeast_annot <- shift(yeast_annot,250)
-# Get the annotations for all CDS of uncharacterized and verified genes
+# Get the annotations for all CDS of uncharacterized and verified genes. Unfortunately, orf_classification is not an option in the S. pombe
 cds_annot <- yeast_annot[(yeast_annot$orf_classification=="Uncharacterized" | yeast_annot$orf_classification=="Verified") &
                            !is.na(yeast_annot$orf_classification) & yeast_annot$type=="CDS"]
 cds_annot$Name <- sapply(strsplit(cds_annot$Name,"_"), `[`, 1)
