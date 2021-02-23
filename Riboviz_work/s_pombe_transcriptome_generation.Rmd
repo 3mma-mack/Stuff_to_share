@@ -108,6 +108,7 @@ for(i in (names(cds_flank_seq))){
     output_seqlist[[cc]] <- reverseComplement(output_seqlist[[cc]])
   }
   #if the strand of the current named gene sequence is on the reverse strand, then create the reverse complement and put it in position cc
+  #however I believe a change I made here is leading to all results of the conditional being false. however the original line 'if(any(strand(cds_flank_annot[cds_flank_annot$Name==i])=="-"))' was leading to errors
   
   cc <- cc+1
   #increase cc by one so the next line of the cds_flank_seq object is held at the next location in the output_seqlist_list 
