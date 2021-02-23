@@ -3,6 +3,9 @@ this adapted from script_for_transcrip_annotation and is dependent on the fa fil
 Fasta file is premade to include cds, introns and UTRS from: https://www.pombase.org/data/genome_sequence_and_features/feature_sequences/cds+introns+utrs.fa.gz
 Gff is also from pombase : https://www.pombase.org/data/genome_sequence_and_features/gff3/Schizosaccharomyces_pombe_all_chromosomes.gff3.gz
 
+**This is likely to be wrong as I still need to check in depth, it is a work in progress. The majority of my time was spent scouring https://www.rdocumentation.org/ trying to understand what different functions do and need to function.
+** still to do, download introns.fa.gz from pombase and remove from yeast_genome DNAStringset, as introns may cause an issue with alignment
+
 ``` {r load_packages}
 library(Biostrings)
 library(seqinr)
@@ -53,27 +56,133 @@ GRanges object with 6 ranges and 7 metadata columns:
   
   ``` {r extract genes}
 cds_flank_annot <- yeast_annot[yeast_annot$ID %in% names(yeast_genome)]
+# this should extract lines from yeast_annot if their IDs are present in yeast_genome
 cds_flank_seq <- yeast_genome[names(yeast_genome) %in% yeast_annot$ID]
+# thid was me extracting the sections of the yeast_genome if it has a name that matches yeast_annot name, in case any sequences are present that do not match 
 names(cds_flank_seq) <- yeast_annot$Name
+# change the names on the cds_flank_seq to gene names, as this is what script_for_transcript_annotation.Rmd uses.
   ``` 
+  The following objects analysed with head()
+  > head(cds_flank_annot)
+  GRanges object with 6 ranges and 7 metadata columns:
+      seqnames          ranges strand |   source     type     score
+         <Rle>       <IRanges>  <Rle> | <factor> <factor> <numeric>
+  [1]        I 1798347-1799015      + |  PomBase     gene        NA
+  [2]        I 1799061-1800053      + |  PomBase     gene        NA
+  [3]        I 1799915-1803141      - |  PomBase     gene        NA
+  [4]        I 1803624-1804491      - |  PomBase     gene        NA
+  [5]        I 1804548-1806797      - |  PomBase     gene        NA
+  [6]        I 1807270-1807781      - |  PomBase     gene        NA
+          phase           ID        Name          Parent
+      <integer>  <character> <character> <CharacterList>
+  [1]      <NA>  SPAC1002.01       mrx11                
+  [2]      <NA>  SPAC1002.02       pom34                
+  [3]      <NA> SPAC1002.03c        gls2                
+  [4]      <NA> SPAC1002.04c       taf11                
+  [5]      <NA> SPAC1002.05c        jmj2                
+  [6]      <NA> SPAC1002.06c        bqt2                
+  -------
+  seqinfo: 6 sequences from an unspecified genome; no seqlengths
+  
+  > head(cds_flank_seq)
+DNAStringSet object of length 6:
+    width seq                                   names               
+[1]   669 ATGTTACCACCAACTAT...CGTTTGTTTCCAACTAA SPAC1002.01
+[2]   993 CGTTTACACCTACATTT...CGCAATAAGATCGAAGA SPAC1002.02
+[3]  3227 CTTATTTTAAGTAGCAA...CTACAAAGAAATTGTCC SPAC1002.03c
+[4]   868 GAAGCAGTTTCCAACCT...GACAAATTACCCCTATC SPAC1002.04c
+[5]  2250 ATGAGCAAGTCTACTTT...ATGTAATGTAAACAATT SPAC1002.05c
+[6]   512 ATGTTTCAAGGAAAGTG...ACGGTGAATTACCTTGA SPAC1002.06c
+
   From here, as the sequences had been recovered for genes, any which were on the reverse strand where converted to their positive complements, so they would be compatible with riboviz.
-  ``` {r change to positive strand} 
-  output_seqlist <- list()
+  ``` {r change to positive strand}
+ 
+output_seqlist <- list()
+# create an empty list for individual sequences to be held
 cc <- 1
+#set cc to 1, so when looped each loop will add to the next line of the list 
 for(i in (names(cds_flank_seq))){
   output_seqlist[[cc]] <- c(unlist(cds_flank_seq[names(cds_flank_seq)==i]))
+  # for each named sequence, for example when i == SPAC1002.01, unlist it from the rest of the object, and put in location cc in output_seqlist
   if (any(strand(cds_flank_annot$Name==i)=="-")){
     output_seqlist[[cc]] <- reverseComplement(output_seqlist[[cc]])
   }
+  #if the strand of the current named gene sequence is on the reverse strand, then create the reverse complement and put it in position cc
   
   cc <- cc+1
+  #increase cc by one so the next line of the cds_flank_seq object is held at the next location in the output_seqlist_list 
 }
+
 ```
+This produces a list of DNAString objects
+**upon closer inspection while adding notes it does not appear that the genes that are on the negative strand have been changed to their reverse complement,  
+will look into this further tomorrow with a smaller dataset made with 'mini <- cds_flank_annot[1:4]' which contains the first 4 genes, two of which are on the negative strand.
+
+head(output_seqlist)
+[[1]]
+669-letter DNAString object
+seq: ATGTTACCACCAACTATTAGAATTTCAGGT...TCTTCTACGCGTCCGTTTGTTTCCAACTAA
+
+[[2]]
+993-letter DNAString object
+seq: CGTTTACACCTACATTTGCTAAAATAATTT...TGGTATTGTTAGTCGCAATAAGATCGAAGA
+
+[[3]]
+3227-letter DNAString object
+seq: CTTATTTTAAGTAGCAATGTTACTTGGTAT...AAGAAATTCATCCCTACAAAGAAATTGTCC
+
+[[4]]
+868-letter DNAString object
+seq: GAAGCAGTTTCCAACCTGTGAAATTTACTT...ACATTAAAATGAAGACAAATTACCCCTATC
+
+[[5]]
+2250-letter DNAString object
+seq: ATGAGCAAGTCTACTTTTCATCAAACTTCC...CATCGTTGGATTCATGTAATGTAAACAATT
+
+[[6]]
+512-letter DNAString object
+seq: ATGTTTCAAGGAAAGTGCGCCTTTTTTGAT...CTTTCTTTTCTAAACGGTGAATTACCTTGA
+
 This was transformed back into a DNAStringset
 ``` {r create fasta}
 output_seq <- DNAStringSet(output_seqlist)
+#put the list back together into a DNAStringset object
 names(output_seq) <- unique(names(cds_flank_seq))
-writeXStringSet(output_seq, filepath = "4th year/S_pombe_cds_UTR.fa", format="fasta")
+writeXStringSet(output_seq, filepath = "4th year/project/S_pombe_cds_UTR.fa", format="fasta")
+#export it, for me it is going into a folder called 4th year/project
 
 ```
-Generation of gff file and testing with a mini dataset containing an example of both positive and negative strand genes to check actual output is still to come. 
+Something was exported as a fasta file, so something has happened, but I still want to check and change, the fact that somethingran is a big + for me as at least it shows I am understanding the requirements of different functions.
+
+Generation of gff file and testing with a mini dataset containing an example of both positive and negative strand genes to check actual output is still to come, will need to figure out matrixes 
+
+**Previous code, why I changed it and the errors being produced. 
+
+```{r previous code from script_for_transcript_annotation and why I changed it}
+
+#I did not resize the genome or add flanks, because the fasta file already only included CDS, UTRS and introns. the introns will likely need to be removed.
+
+cds_flank_seq <- yeast_genome[cds_flank_annot]
+#This line is meant to extract the relevant sequences from the genome based on the resized cds object. This produced the following error:
+#cds_flank_seq <- yeast_genome[cds_flank_annot]
+#Error in .subset_by_GenomicRanges(x, i) : 
+  #when subsetting by a GenomicRanges subscript, the names of
+  #the object to subset must contain the seqnames of the
+  #subscript
+#I decided to extract the genes and sequneces based on the ID 
+
+
+output_seqlist <- list()
+cc <- 1
+for(i in unique(names(cds_flank_seq))){
+  output_seqlist[[cc]] <- c(unlist(cds_flank_seq[names(cds_flank_seq)==i]))
+  if(any(strand(cds_flank_annot[cds_flank_annot$Name==i])=="-")){
+    output_seqlist[[cc]] <- reverseComplement(output_seqlist[[cc]])
+  }
+  cc <- cc+1
+}
+# This loop produced the error:
+#Error in h(simpleError(msg, call)) : 
+ # error in evaluating the argument 'x' in selecting a method for function 'strand': logical subscript contains NAs
+ # this was narrowed down to the line 'any(strand(cds_flank_annot[cds_flank_annot$Name==i])=="-")' so this was changed. 
+ #This change is likely the cause of the lack of reverse complements
