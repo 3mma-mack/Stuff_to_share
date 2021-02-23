@@ -1,0 +1,79 @@
+This is the code I have used that seems to have successfully created another fasta file so far, need to continue to generate a gff file.
+this adapted from script_for_transcrip_annotation and is dependent on the fa file containing only the cds, introns and UTRS being present as it eliminates the need for these to be extracted or added. 
+Fasta file is premade to include cds, introns and UTRS from: https://www.pombase.org/data/genome_sequence_and_features/feature_sequences/cds+introns+utrs.fa.gz
+Gff is also from pombase : https://www.pombase.org/data/genome_sequence_and_features/gff3/Schizosaccharomyces_pombe_all_chromosomes.gff3.gz
+
+``` {r load_packages}
+library(Biostrings)
+library(seqinr)
+library(GenomicRanges) 
+library(GenomicFeatures)
+library(rtracklayer)
+library(dplyr)
+
+yeast_genome <- readDNAStringSet("cds+introns+utrs.fa.gz")
+yeast_annot <- readGFFAsGRanges("s_pombe.gff.gz")
+```
+head(yeast_genome) produced the following:
+
+ head(yeast_genome)
+DNAStringSet object of length 6:
+    width seq                                    names               
+[1]   669 ATGTTACCACCAACTATT...CGTTTGTTTCCAACTAA SPAC1002.01
+[2]   993 CGTTTACACCTACATTTG...CGCAATAAGATCGAAGA SPAC1002.02
+[3]  3227 CTTATTTTAAGTAGCAAT...CTACAAAGAAATTGTCC SPAC1002.03c
+[4]   868 GAAGCAGTTTCCAACCTG...GACAAATTACCCCTATC SPAC1002.04c
+[5]  2250 ATGAGCAAGTCTACTTTT...ATGTAATGTAAACAATT SPAC1002.05c
+[6]   512 ATGTTTCAAGGAAAGTGC...ACGGTGAATTACCTTGA SPAC1002.06c
+
+head(yeast_annot) produced the following:
+head(yeast_annot)
+GRanges object with 6 ranges and 7 metadata columns:
+      seqnames          ranges strand |   source     type     score
+         <Rle>       <IRanges>  <Rle> | <factor> <factor> <numeric>
+  [1]        I 1798347-1799015      + |  PomBase   gene          NA
+  [2]        I 1798347-1799015      + |  PomBase   mRNA          NA
+  [3]        I 1798347-1798830      + |  PomBase   CDS           NA
+  [4]        I 1798831-1798959      + |  PomBase   intron        NA
+  [5]        I 1798960-1799015      + |  PomBase   CDS           NA
+  [6]        I 1799061-1800053      + |  PomBase   gene          NA
+          phase                     ID        Name          Parent
+      <integer>            <character> <character> <CharacterList>
+  [1]      <NA>            SPAC1002.01       mrx11                
+  [2]      <NA>          SPAC1002.01.1        <NA>     SPAC1002.01
+  [3]         0   SPAC1002.01.1:exon:1        <NA>   SPAC1002.01.1
+  [4]      <NA> SPAC1002.01.1:intron:1        <NA>   SPAC1002.01.1
+  [5]         0   SPAC1002.01.1:exon:2        <NA>   SPAC1002.01.1
+  [6]      <NA>            SPAC1002.02       pom34                
+  -------
+  seqinfo: 6 sequences from an unspecified genome; no seqlengths
+  
+  The common feature here is the name from yeast_genome matching the ID from yeast_annot, so created a GRanges object containing only the lines from yeast_annot that have a matching ID
+  these are the gene types which include introns, cds and UTRs.
+  
+  ``` {r extract genes}
+cds_flank_annot <- yeast_annot[yeast_annot$ID %in% names(yeast_genome)]
+cds_flank_seq <- yeast_genome[names(yeast_genome) %in% yeast_annot$ID]
+names(cds_flank_seq) <- yeast_annot$Name
+  ``` 
+  From here, as the sequences had been recovered for genes, any which were on the reverse strand where converted to their positive complements, so they would be compatible with riboviz.
+  ``` {r change to positive strand} 
+  output_seqlist <- list()
+cc <- 1
+for(i in (names(cds_flank_seq))){
+  output_seqlist[[cc]] <- c(unlist(cds_flank_seq[names(cds_flank_seq)==i]))
+  if (any(strand(cds_flank_annot$Name==i)=="-")){
+    output_seqlist[[cc]] <- reverseComplement(output_seqlist[[cc]])
+  }
+  
+  cc <- cc+1
+}
+```
+This was transformed back into a DNAStringset
+``` {r create fasta}
+output_seq <- DNAStringSet(output_seqlist)
+names(output_seq) <- unique(names(cds_flank_seq))
+writeXStringSet(output_seq, filepath = "4th year/S_pombe_cds_UTR.fa", format="fasta")
+
+```
+Generation of gff file and testing with a mini dataset containing an example of both positive and negative strand genes to check actual output is still to come. 
